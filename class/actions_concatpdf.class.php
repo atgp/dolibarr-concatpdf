@@ -18,14 +18,14 @@
 
 /**
  *	\file       htdocs/concatpdf/class/actions_concatpdf.class.php
- *	\ingroup    societe
+ *	\ingroup    concatpdf
  *	\brief      File to control actions
  */
 require_once(DOL_DOCUMENT_ROOT."/core/class/commonobject.class.php");
 
 
 /**
- *	Class to manage hooks for module PartiPirate
+ *	Class to manage hooks for module ConcatPdf
  */
 class ActionsConcatPdf
 {
@@ -45,18 +45,19 @@ class ActionsConcatPdf
 
 
     /**
-     * Complete doc forms
+     * Complete doc forms (set this->resprint).
      *
      * @param	array	$parameters		Array of parameters
      * @param	object	$object			Object
-     * @return	string					HTML content to add by hook
+     * @return  int 		        	<0 if KO,
+     *                          		=0 if OK but we want to process standard actions too,
+     *  	                            >0 if OK and we want to replace standard actions.
      */
     function formBuilddocOptions($parameters,&$object)
     {
-        global $langs, $user, $conf;
+        global $langs, $user, $conf, $form;
 
         $langs->load("concatpdf@concatpdf");
-        $form=new Form($this->db);
 
         $out='';
 
@@ -64,44 +65,75 @@ class ActionsConcatPdf
 
         if ($parameters['modulepart'] == 'propal')
         {
-        	$staticpdf=glob($conf->concatpdf->dir_output."/proposals/*.pdf");
+        	$staticpdf=glob($conf->concatpdf->dir_output."/proposals/*.[pP][dD][fF]");
         	$modelpdf=glob($conf->concatpdf->dir_output."/proposals/pdf_*.modules.php");
         }
         if ($parameters['modulepart'] == 'order'   || $parameters['modulepart'] == 'commande')
         {
-        	$staticpdf=glob($conf->concatpdf->dir_output."/orders/*.pdf");
+        	$staticpdf=glob($conf->concatpdf->dir_output."/orders/*.[pP][dD][fF]");
         	$modelpdf=glob($conf->concatpdf->dir_output."/orders/pdf_*.modules.php");
         }
         if ($parameters['modulepart'] == 'invoice' || $parameters['modulepart'] == 'facture')
         {
-        	$staticpdf=glob($conf->concatpdf->dir_output."/invoices/*.pdf");
+        	$staticpdf=glob($conf->concatpdf->dir_output."/invoices/*.[pP][dD][fF]");
         	$modelpdf=glob($conf->concatpdf->dir_output."/invoices/pdf_*.modules.php");
         }
         if ($parameters['modulepart'] == 'supplier_order' || $parameters['modulepart'] == 'commande_fournisseur')
         {
-        	$staticpdf=glob($conf->concatpdf->dir_output."/supplier_orders/*.pdf");
+        	$staticpdf=glob($conf->concatpdf->dir_output."/supplier_orders/*.[pP][dD][fF]");
         	$modelpdf=glob($conf->concatpdf->dir_output."/supplier_orders/pdf_*.modules.php");
         }
         if ($parameters['modulepart'] == 'supplier_invoice' || $parameters['modulepart'] == 'facture_fournisseur')
         {
-        	$staticpdf=glob($conf->concatpdf->dir_output."/supplier_invoices/*.pdf");
+        	$staticpdf=glob($conf->concatpdf->dir_output."/supplier_invoices/*.[pP][dD][fF]");
         	$modelpdf=glob($conf->concatpdf->dir_output."/supplier_invoices/pdf_*.modules.php");
+        }
+        if ($parameters['modulepart'] == 'contract' || $parameters['modulepart'] == 'contract')
+        {
+        	$staticpdf=glob($conf->concatpdf->dir_output."/contracts/*.[pP][dD][fF]");
+        	$modelpdf=glob($conf->concatpdf->dir_output."/contracts/pdf_*.modules.php");
+        }
+
+        // Defined $preselected value
+        $preselected=(isset($object->extraparams['concatpdf'][0])?$object->extraparams['concatpdf'][0]:-1);	// string with preselected string
+        if ($preselected == -1 && ! empty($conf->global->CONCATPDF_PRESELECTED_MODELS))
+        {
+        	// $conf->global->CONCATPDF_PRESELECTED_MODELS may contains value of preselected model with format
+        	// propal:model1a,model1b;invoice:model2;...
+        	$tmparray=explode(';',$conf->global->CONCATPDF_PRESELECTED_MODELS);
+        	$tmparray2=array();
+        	foreach($tmparray as $val)
+        	{
+        		$tmp=explode(':',$val);
+        		if (! empty($tmp[1])) $tmparray2[$tmp[0]]=$tmp[1];
+        	}
+        	foreach($tmparray2 as $key => $val)
+        	{
+        		if ($parameters['modulepart'] == $key) $preselected=$val;
+        	}
         }
 
         if (! empty($staticpdf))
         {
             foreach ($staticpdf as $filename)
             {
-            	$morefiles[] = basename($filename, ".pdf");
+            	$newfilekey=basename($filename, ".pdf");	// We do not remove extensionif it is uppercase .PDF otherwise there is no way to retrieve file name later
+            	$newfilelabel=$newfilekey;
+        		if ($preselected && $newfilekey == $preselected) $newfilelabel.=' ('.$langs->trans("Default").')';
+            	$morefiles[$newfilekey] = $newfilelabel;
             }
         }
         if (! empty($modelpdf))
         {
         	foreach ($modelpdf as $filename)
         	{
-        		$morefiles[] = basename($filename, ".php");
+        		$newfilekey=basename($filename, ".php");
+            	$newfilelabel=$newfilekey;
+        		if ($preselected && $newfilekey == $preselected) $newfilelabel.=' ('.$langs->trans("Default").')';
+        		$morefiles[$newfilekey] = $newfilelabel;
         	}
         }
+
         if (empty($morefiles)) print "\n".'<!-- No files found for concat parameter[modulepart]='.$parameters['modulepart'].' -->'."\n";
         else
 		{
@@ -109,23 +141,24 @@ class ActionsConcatPdf
         	$out.='<td align="left" colspan="4" valign="top" class="formdoc">';
         	$out.=$langs->trans("ConcatFile").' ';
 
-        	if (! empty($conf->global->MAIN_USE_JQUERY_MULTISELECT) && ! empty($conf->global->CONCATPDF_MULTIPLE_CONCATENATION_ENABLED))
+        	if (! empty($conf->global->CONCATPDF_MULTIPLE_CONCATENATION_ENABLED))
         	{
         		$out.='</td></tr>';
 
-        		dol_include_once('/concatpdf/core/tpl/ajaxmultiselect.tpl.php');
-
         		$out.='<tr><td id="selectconcatpdf" colspan="4" valign="top">';
-        		$out.= $form->multiselectarray('concatpdffile', $morefiles, (! empty($object->extraparams['concatpdf'])?$object->extraparams['concatpdf']:''), 0, 1, '', 1);
+        		$out.= $form->multiselectarray('concatpdffile', $morefiles, (! empty($object->extraparams['concatpdf'])?$object->extraparams['concatpdf']:''), 0, 0, '', 1, 300);
         	}
         	else
         	{
-        		$out.= $form->selectarray('concatpdffile',$morefiles,(isset($object->extraparams['concatpdf'][0])?$object->extraparams['concatpdf'][0]:-1),1,0,1);
+        		$out.= '<!-- preselected value is '.$preselected.' -->';
+        		$out.= $form->selectarray('concatpdffile',$morefiles,$preselected,1,0,0);
         	}
         	$out.='</td></tr>';
         }
 
-        return $out;
+        $this->resprints = $out;
+
+        return 0;
     }
 
 
@@ -134,13 +167,13 @@ class ActionsConcatPdf
      * Execute action
      *
      * @param	array	$parameters		Array of parameters
-     * @param   Object	&$object    	Deprecated. This field is nto used
+     * @param   Object	&$pdfhandler   	PDF builder handler
      * @param   string	$action     	'add', 'update', 'view'
      * @return  int 		        	<0 if KO,
      *                          		=0 if OK but we want to process standard actions too,
      *  	                            >0 if OK and we want to replace standard actions.
      */
-    function afterPDFCreation($parameters,&$object,&$action)
+    function afterPDFCreation($parameters,&$pdfhandler,&$action)
     {
         global $langs,$conf;
         global $hookmanager;
@@ -151,10 +184,8 @@ class ActionsConcatPdf
         dol_syslog(get_class($this).'::executeHooks action='.$action);
 
         $check='alpha';
-        if (! empty($conf->global->MAIN_USE_JQUERY_MULTISELECT) && ! empty($conf->global->CONCATPDF_MULTIPLE_CONCATENATION_ENABLED))
-        {
-        	$check='array';
-        }
+        if (! empty($conf->global->CONCATPDF_MULTIPLE_CONCATENATION_ENABLED)) $check='array';
+
         $concatpdffile = GETPOST('concatpdffile',$check);
         if (! is_array($concatpdffile) && ! empty($concatpdffile)) $concatpdffile = array($concatpdffile);
 
@@ -164,6 +195,7 @@ class ActionsConcatPdf
         if ($parameters['object']->element == 'invoice' || $parameters['object']->element == 'facture')  $element='invoices';
         if ($parameters['object']->element == 'order_supplier' || $parameters['object']->element == 'commande_fournisseur')  $element='supplier_orders';
         if ($parameters['object']->element == 'invoice_supplier' || $parameters['object']->element == 'facture_fournisseur')  $element='supplier_invoices';
+        if ($parameters['object']->element == 'contract' || $parameters['object']->element == 'contrat')  $element='contracts';
 
         $filetoconcat1=array($parameters['file']);
         $filetoconcat2=array();
@@ -173,6 +205,7 @@ class ActionsConcatPdf
         {
         	foreach($concatpdffile as $concatfile)
         	{
+        		// We find which second file to add (or generate if if file to add as a name starting with pdf___)
         		if (preg_match('/^pdf_(.*)+\.modules/', $concatfile))
         		{
         			require_once(DOL_DOCUMENT_ROOT."/core/lib/files.lib.php");
@@ -194,13 +227,13 @@ class ActionsConcatPdf
 
         			$objectref = dol_sanitizeFileName($parameters['object']->ref);
         			$dir = $conf->concatpdf->dir_temp . "/" . $objectref;
-        			$filetoconcat2[] = $dir . "/" . $objectref . ".pdf";
+        			$filetoconcat2[] = $dir . "/" . $objectref . (preg_match('/\.PDF$/',$objectref)?'':".pdf");
 
         			$deltemp[] = $dir;
         		}
         		else
         		{
-        			$filetoconcat2[] = $conf->concatpdf->dir_output.'/'.$element.'/'.$concatfile.'.pdf';
+        			$filetoconcat2[] = $conf->concatpdf->dir_output.'/'.$element.'/'.$concatfile.(preg_match('/\.PDF$/',$concatfile)?'':".pdf");
         		}
         	}
 
@@ -249,10 +282,10 @@ class ActionsConcatPdf
         else
        {
         	// Remove extraparams for concatpdf
-        	unset($parameters['object']->extraparams['concatpdf']);
+        	if (isset($parameters['object']->extraparams['concatpdf'])) unset($parameters['object']->extraparams['concatpdf']);
         }
 
-        $result=$parameters['object']->setExtraParameters();
+        if (is_object($parameters['object']) && method_exists($parameters['object'], 'setExtraParameters')) $result=$parameters['object']->setExtraParameters();
 
         return $ret;
     }
