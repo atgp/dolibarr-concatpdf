@@ -20,8 +20,8 @@
  */
 
 /**
- *       \file       htdocs/concatpdf/core/modules/modconcatpdf.class.php
- *       \ingroup    ftp
+ *       \file       htdocs/concatpdf/core/modules/modconcatPdf.class.php
+ *       \ingroup    concatpdf
  *       \brief      Description and activation file for module concatpdf
  */
 
@@ -54,7 +54,7 @@ class modConcatPdf extends DolibarrModules
 		// Module description used if translation string 'ModuleXXXDesc' not found (XXX is id value)
 		$this->description = "Concat pdfs found into a directory to generated pdf files (proposals, orders, invoices)";
 		// Possible values for version are: 'development', 'experimental', 'dolibarr' or version
-		$this->version = '3.4';
+		$this->version = '3.7.1';
 		// Key used in llx_const table to save module status enabled/disabled (XXX is id value)
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		// Where to store the module in setup page (0=common,1=interface,2=others,3=very specific)
@@ -74,7 +74,7 @@ class modConcatPdf extends DolibarrModules
 				//						'barcode' => 0,                                  // Set this to 1 if module has its own barcode directory
 				//						'models' => 0,                                   // Set this to 1 if module has its own models directory
 				//						'css' => '/filemanager/css/concatpdf.css.php',   // Set this to relative path of css if module has its own css file
-										'hooks' => array('invoicecard','propalcard','ordercard','invoicesuppliercard','ordersuppliercard','pdfgeneration')  // Set here all hooks context managed by module
+										'hooks' => array('invoicecard','propalcard','ordercard','invoicesuppliercard','ordersuppliercard','contractcard','pdfgeneration')  // Set here all hooks context managed by module
 		);
 
 		// Data directories to create when module is enabled

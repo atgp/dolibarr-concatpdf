@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2008-2013	Laurent Destailleur  <eldy@users.sourceforge.net>
+/* Copyright (C) 2008-2015	Laurent Destailleur  <eldy@users.sourceforge.net>
  * Copyright (C) 2012		Regis Houssin        <regis.houssin@capnetworks.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -28,13 +28,9 @@ $res=0;
 if (! $res && file_exists("../main.inc.php")) $res=@include("../main.inc.php");
 if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php");
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php");
-
-// Use on dev env only
-if (! $res && file_exists($_SERVER['DOCUMENT_ROOT']."/main.inc.php")) $res=@include($_SERVER['DOCUMENT_ROOT']."/main.inc.php");
-
-if (! $res && file_exists("../../../dolibarr/htdocs/main.inc.php")) $res=@include("../../../dolibarr/htdocs/main.inc.php");     // Used on dev env only
-if (! $res && file_exists("../../../../dolibarr/htdocs/main.inc.php")) $res=@include("../../../../dolibarr/htdocs/main.inc.php");   // Used on dev env only
-if (! $res && file_exists("../../../../../dolibarr/htdocs/main.inc.php")) $res=@include("../../../../../dolibarr/htdocs/main.inc.php");   // Used on dev env only
+if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php");
+if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../../../../main.inc.php");
+if (! $res && preg_match('/\/nltechno([^\/]*)\//',$_SERVER["PHP_SELF"],$reg)) $res=@include("../../../../dolibarr".$reg[1]."/htdocs/main.inc.php"); // Used on dev env only
 if (! $res) die("Include of main fails");
 require_once(DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php");
 require_once(DOL_DOCUMENT_ROOT."/core/lib/files.lib.php");
@@ -59,6 +55,7 @@ if ($conf->commande->enabled) $modules['orders']='Orders';
 if ($conf->facture->enabled) $modules['invoices']='Invoices';
 if ($conf->fournisseur->enabled) $modules['supplier_orders']='SuppliersOrders';
 if ($conf->fournisseur->enabled) $modules['supplier_invoices']='SuppliersInvoices';
+if ($conf->contract->enabled) $modules['contracts']='Contracts';
 
 
 /*
@@ -105,7 +102,7 @@ if (GETPOST('sendit') && ! empty($conf->global->MAIN_UPLOAD_DOC))
 
 	if (! $error)
 	{
-		if (preg_match('/\.pdf$/', $_FILES['userfile']['name']))
+		if (preg_match('/\.pdf$/i', $_FILES['userfile']['name']))
 		{
 			$upload_dir = $conf->concatpdf->dir_output.'/'.GETPOST('module', 'alpha');
 
@@ -136,7 +133,7 @@ if (GETPOST('sendit') && ! empty($conf->global->MAIN_UPLOAD_DOC))
 		}
 		else
 		{
-			setEventMessage($langs->trans("ErrorFileNotUploaded"),'errors');
+			setEventMessage($langs->trans("ErrorFileMustBeAPdf"),'errors');
 		}
 	}
 }
@@ -194,12 +191,12 @@ if ($action == 'remove_file')
 }
 
 // Show dir for each module
-print $langs->trans("ConcatPDfTakeFileFrom").'<br>';
+print $langs->trans("ConcatPDfTakeFileFrom").'<br><br>';
 $langs->load("propal"); $langs->load("orders"); $langs->load("bills");
 foreach ($modules as $module => $moduletranskey)
 {
 	$outputdir=$conf->concatpdf->dir_output.'/'.$module;
-	print '* '.$langs->trans("ConcatPDfTakeFileFrom2",$langs->transnoentitiesnoconv($moduletranskey),$outputdir).'<br>';
+	print '* '.$langs->trans("ConcatPDfTakeFileFrom2",$langs->transnoentitiesnoconv($moduletranskey),$outputdir).'<br><br>';
 }
 print '<br><br>';
 
@@ -250,7 +247,7 @@ if (! empty($conf->global->MAIN_USE_JQUERY_MULTISELECT))
 
 
 $select_module=$form->selectarray('module', $modules, GETPOST('module'), 1, 0, 0, '', 1);
-$formfile->form_attach_new_file($_SERVER['PHP_SELF'], '', 0, 0, 1, 50, '', $select_module, false);
+$formfile->form_attach_new_file($_SERVER['PHP_SELF'], '', 0, 0, 1, 50, '', $select_module, false, '', 0);
 
 dol_fiche_end();
 
