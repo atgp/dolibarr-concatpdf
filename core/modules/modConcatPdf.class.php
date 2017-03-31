@@ -53,8 +53,10 @@ class modConcatPdf extends DolibarrModules
 		$this->name = preg_replace('/^mod/i','',get_class($this));
 		// Module description used if translation string 'ModuleXXXDesc' not found (XXX is id value)
 		$this->description = "Concat pdfs found into a directory to generated pdf files (proposals, orders, invoices)";
+        $this->editor_name = 'NLTechno';
+        $this->editor_url = 'http://www.nltechno.com';
 		// Possible values for version are: 'development', 'experimental', 'dolibarr' or version
-		$this->version = '3.7.1';
+		$this->version = '3.7.2';
 		// Key used in llx_const table to save module status enabled/disabled (XXX is id value)
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		// Where to store the module in setup page (0=common,1=interface,2=others,3=very specific)
@@ -74,11 +76,11 @@ class modConcatPdf extends DolibarrModules
 				//						'barcode' => 0,                                  // Set this to 1 if module has its own barcode directory
 				//						'models' => 0,                                   // Set this to 1 if module has its own models directory
 				//						'css' => '/filemanager/css/concatpdf.css.php',   // Set this to relative path of css if module has its own css file
-										'hooks' => array('invoicecard','propalcard','ordercard','invoicesuppliercard','ordersuppliercard','contractcard','pdfgeneration')  // Set here all hooks context managed by module
+										'hooks' => array('invoicecard','propalcard','ordercard','invoicesuppliercard','ordersuppliercard','supplier_proposalcard','contractcard','pdfgeneration')  // Set here all hooks context managed by module
 		);
 
 		// Data directories to create when module is enabled
-		$this->dirs = array('/concatpdf/invoices','/concatpdf/orders','/concatpdf/proposals','/concatpdf/supplier_orders','/concatpdf/supplier_invoices','/concatpdf/temp');
+		$this->dirs = array('/concatpdf/proposals','/concatpdf/orders','/concatpdf/invoices','/concatpdf/supplier_proposals','/concatpdf/supplier_orders','/concatpdf/supplier_invoices','/concatpdf/contracts','/concatpdf/temp');
 
 		// Config pages. Put here list of php page names stored in admin directory used to setup module
 		$this->config_page_url = array('concatpdf.php@concatpdf');
