@@ -103,13 +103,23 @@ if (GETPOST('sendit') && ! empty($conf->global->MAIN_UPLOAD_DOC))
 
 	if (! $error)
 	{
-		if (preg_match('/\.pdf$/i', $_FILES['userfile']['name']))
+		if (is_array($_FILES['userfile']['name']) && count($_FILES['userfile']['name'])>0) {
+			$filename=$_FILES['userfile']['name'][0];
+			$filename_tmp=$_FILES['userfile']['tmp_name'][0];
+			$filename_error=$_FILES['userfile']['error'][0];
+		} else {
+			$filename=$_FILES['userfile']['name'];
+			$filename_tmp=$_FILES['userfile']['tmp_name'];
+			$filename_error=$_FILES['userfile']['error'];
+		}
+
+		if (preg_match('/\.pdf$/i', $filename))
 		{
 			$upload_dir = $conf->concatpdf->dir_output.'/'.GETPOST('module', 'alpha');
 
 			if (dol_mkdir($upload_dir) >= 0)
 			{
-				$resupload=dol_move_uploaded_file($_FILES['userfile']['tmp_name'], $upload_dir . "/" . $_FILES['userfile']['name'],0,0,$_FILES['userfile']['error']);
+				$resupload=dol_move_uploaded_file($filename_tmp, $upload_dir . "/" . $filename,0,0,$filename_error);
 				if (is_numeric($resupload) && $resupload > 0)
 				{
 					setEventMessage($langs->trans("FileTransferComplete"),'mesgs');
@@ -211,7 +221,7 @@ $formfile->form_attach_new_file($_SERVER['PHP_SELF'], '', 0, 0, 1, 50, '', $sele
 if (! empty($conf->global->MAIN_USE_JQUERY_MULTISELECT))
 {
     print '<br>';
-    
+
     $form=new Form($db);
     $var=true;
     print '<table class="noborder" width="100%">';
