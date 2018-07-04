@@ -22,20 +22,16 @@
  *      \brief      Page to setup module ConcatPdf
  */
 
-// Load Dolibarr environment
+define('NOCSRFCHECK',1);
+
 $res=0;
-// Try main.inc.php into web root known defined into CONTEXT_DOCUMENT_ROOT (not always defined)
-if (! $res && ! empty($_SERVER["CONTEXT_DOCUMENT_ROOT"])) $res=@include($_SERVER["CONTEXT_DOCUMENT_ROOT"]."/main.inc.php");
-// Try main.inc.php into web root detected using web root caluclated from SCRIPT_FILENAME
-$tmp=empty($_SERVER['SCRIPT_FILENAME'])?'':$_SERVER['SCRIPT_FILENAME'];$tmp2=realpath(__FILE__); $i=strlen($tmp)-1; $j=strlen($tmp2)-1;
-while($i > 0 && $j > 0 && isset($tmp[$i]) && isset($tmp2[$j]) && $tmp[$i]==$tmp2[$j]) { $i--; $j--; }
-if (! $res && $i > 0 && file_exists(substr($tmp, 0, ($i+1))."/main.inc.php")) $res=@include(substr($tmp, 0, ($i+1))."/main.inc.php");
-if (! $res && $i > 0 && file_exists(dirname(substr($tmp, 0, ($i+1)))."/main.inc.php")) $res=@include(dirname(substr($tmp, 0, ($i+1)))."/main.inc.php");
-// Try main.inc.php using relative path
+if (! $res && file_exists("../main.inc.php")) $res=@include("../main.inc.php");
 if (! $res && file_exists("../../main.inc.php")) $res=@include("../../main.inc.php");
 if (! $res && file_exists("../../../main.inc.php")) $res=@include("../../../main.inc.php");
+if (! $res && file_exists("../../../../main.inc.php")) $res=@include("../../../../main.inc.php");
+if (! $res && file_exists("../../../../../main.inc.php")) $res=@include("../../../../../main.inc.php");
+if (! $res && preg_match('/\/nltechno([^\/]*)\//',$_SERVER["PHP_SELF"],$reg)) $res=@include("../../../../dolibarr".$reg[1]."/htdocs/main.inc.php"); // Used on dev env only
 if (! $res) die("Include of main fails");
-
 require_once(DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php");
 require_once(DOL_DOCUMENT_ROOT."/core/lib/files.lib.php");
 require_once(DOL_DOCUMENT_ROOT.'/core/class/html.formadmin.class.php');
@@ -61,8 +57,6 @@ if ($conf->fournisseur->enabled) $modules['supplier_orders']='SuppliersOrders';
 if ($conf->fournisseur->enabled) $modules['supplier_invoices']='SuppliersInvoices';
 if ($conf->supplier_proposal->enabled) $modules['supplier_proposals']='SupplierProposals';
 if ($conf->contract->enabled) $modules['contracts']='Contracts';
-
-if (empty($conf->concatpdf->enabled)) accessforbidden();
 
 
 /*
@@ -109,65 +103,48 @@ if (GETPOST('sendit') && ! empty($conf->global->MAIN_UPLOAD_DOC))
 
 	if (! $error)
 	{
-		if (is_array($_FILES['userfile']['name']))
-		{
-			$listoffiles=$_FILES['userfile']['name'];
-		}
-		else
-		{
-			$listoffiles=array($_FILES['userfile']['name']);
+		if (is_array($_FILES['userfile']['name']) && count($_FILES['userfile']['name'])>0) {
+			$filename=$_FILES['userfile']['name'][0];
+			$filename_tmp=$_FILES['userfile']['tmp_name'][0];
+			$filename_error=$_FILES['userfile']['error'][0];
+		} else {
+			$filename=$_FILES['userfile']['name'];
+			$filename_tmp=$_FILES['userfile']['tmp_name'];
+			$filename_error=$_FILES['userfile']['error'];
 		}
 
-		foreach($listoffiles as $key => $filename)
+		if (preg_match('/\.pdf$/i', $filename))
 		{
-			if (preg_match('/\.pdf$/i', $filename))
+			$upload_dir = $conf->concatpdf->dir_output.'/'.GETPOST('module', 'alpha');
+
+			if (dol_mkdir($upload_dir) >= 0)
 			{
-				$upload_dir = $conf->concatpdf->dir_output.'/'.GETPOST('module', 'alpha');
-				if (dol_mkdir($upload_dir) >= 0)
+				$resupload=dol_move_uploaded_file($filename_tmp, $upload_dir . "/" . $filename,0,0,$filename_error);
+				if (is_numeric($resupload) && $resupload > 0)
 				{
-					if (is_array($_FILES['userfile']['name']))
-					{
-						$tmp_name = $_FILES['userfile']['tmp_name'][$key];
-						$fileerror = $_FILES['userfile']['error'][$key];
-					}
-					else
-					{
-						$tmp_name = $_FILES['userfile']['tmp_name'];
-						$fileerror = $_FILES['userfile']['error'];
-					}
-
-					$resupload=dol_move_uploaded_file($tmp_name, $upload_dir . "/" . $filename, 0, 0, $fileerror);
-					if (is_numeric($resupload) && $resupload > 0)
-					{
-						setEventMessage($langs->trans("FileTransferComplete"),'mesgs');
-					}
-					else
-					{
-						$langs->load("errors");
-						if ($resupload < 0)	// Unknown error
-						{
-							setEventMessage($langs->trans("ErrorFileNotUploaded"),'mesgs');
-						}
-						else if (preg_match('/ErrorFileIsInfectedWithAVirus/',$resupload))	// Files infected by a virus
-						{
-							setEventMessage($langs->trans("ErrorFileIsInfectedWithAVirus"),'mesgs');
-						}
-						else	// Known error
-						{
-							setEventMessage($langs->trans($resupload),'errors');
-						}
-					}
+					setEventMessage($langs->trans("FileTransferComplete"),'mesgs');
 				}
 				else
 				{
-					$langs->load('errors');
-					setEventMessage($langs->trans("ErrorFailToCreateDir",$upload_dir),'errors');
+					$langs->load("errors");
+					if ($resupload < 0)	// Unknown error
+					{
+						setEventMessage($langs->trans("ErrorFileNotUploaded"),'mesgs');
+					}
+					else if (preg_match('/ErrorFileIsInfectedWithAVirus/',$resupload))	// Files infected by a virus
+					{
+						setEventMessage($langs->trans("ErrorFileIsInfectedWithAVirus"),'mesgs');
+					}
+					else	// Known error
+					{
+						setEventMessage($langs->trans($resupload),'errors');
+					}
 				}
 			}
-			else
-			{
-				setEventMessage($langs->trans("ErrorFileMustBeAPdf"),'errors');
-			}
+		}
+		else
+		{
+			setEventMessage($langs->trans("ErrorFileMustBeAPdf"),'errors');
 		}
 	}
 }
@@ -295,11 +272,8 @@ print '<br><br>';
 foreach ($modules as $module => $moduletrans)
 {
 	$outputdir=$conf->concatpdf->dir_output.'/'.$module;
-	$listoffiles=dol_dir_list($outputdir,'files',0,'',array('^SPECIMEN\.pdf$'));
-	if (count($listoffiles))
-	{
-	    print $formfile->showdocuments('concatpdf',$module,$outputdir,$_SERVER["PHP_SELF"].'?module='.$module,0,$user->admin,'',0,0,0,0,0,'',$langs->trans("PathDirectory").' '.$outputdir);
-	}
+	$listoffiles=dol_dir_list($outputdir,'files');
+	if (count($listoffiles)) print $formfile->showdocuments('concatpdf',$module,$outputdir,$_SERVER["PHP_SELF"].'?module='.$module,0,$user->admin,'',0,0,0,0,0,'',$langs->trans("PathDirectory").' '.$outputdir);
 	else
 	{
 		print '<div class="titre">'.$langs->trans("PathDirectory").' '.$outputdir.' :</div>';
@@ -315,3 +289,4 @@ foreach ($modules as $module => $moduletrans)
 llxFooter();
 // Close database handler
 $db->close();
+?>

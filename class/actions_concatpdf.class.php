@@ -99,10 +99,15 @@ class ActionsConcatPdf
         	$modelpdf=glob($conf->concatpdf->dir_output."/contracts/pdf_*.modules.php");
         }
 
+        $modulepart = $parameters['modulepart'];
+
         // Defined $preselected value
         $preselected=(isset($object->extraparams['concatpdf'][0])?$object->extraparams['concatpdf'][0]:-1);	// string with preselected string
         if ($preselected == -1 && ! empty($conf->global->CONCATPDF_PRESELECTED_MODELS))
         {
+        	// List of value key into setup -> value for modulepart
+        	$altkey=array('proposal'=>'propal', 'order'=>'commande', 'invoice'=>'facture', 'supplier_order'=>'commande_fournisseur', 'invoice_order'=>'facture_fournisseur');
+
         	// $conf->global->CONCATPDF_PRESELECTED_MODELS may contains value of preselected model with format
         	// propal:model1a,model1b;invoice:model2;...
         	$tmparray=explode(';',$conf->global->CONCATPDF_PRESELECTED_MODELS);
@@ -114,7 +119,7 @@ class ActionsConcatPdf
         	}
         	foreach($tmparray2 as $key => $val)
         	{
-        		if ($parameters['modulepart'] == $key) $preselected=$val;
+        		if ($modulepart == $key || $modulepart == $altkey[$key]) $preselected=$val;		// $preselected is 'mytemplate' or 'mytemplate1,mytemplate2'
         	}
         }
 
@@ -122,7 +127,7 @@ class ActionsConcatPdf
         {
             foreach ($staticpdf as $filename)
             {
-            	$newfilekey=basename($filename, ".pdf");	// We do not remove extensionif it is uppercase .PDF otherwise there is no way to retrieve file name later
+            	$newfilekey=basename($filename, ".pdf");	// We do not remove extension if it is uppercase .PDF otherwise there is no way to retrieve file name later
             	$newfilelabel=$newfilekey;
         		if ($preselected && $newfilekey == $preselected) $newfilelabel.=' ('.$langs->trans("Default").')';
             	$morefiles[$newfilekey] = $newfilelabel;
@@ -148,14 +153,15 @@ class ActionsConcatPdf
 
         	if (! empty($conf->global->CONCATPDF_MULTIPLE_CONCATENATION_ENABLED))
         	{
-        		$out.='</td></tr>';
+        		$arraypreselected = explode(',', $preselected);
 
+        		$out.='</td></tr>';
         		$out.='<tr><td id="selectconcatpdf" colspan="4" valign="top">';
-        		$out.= $form->multiselectarray('concatpdffile', $morefiles, (! empty($object->extraparams['concatpdf'])?$object->extraparams['concatpdf']:''), 0, 0, '', 1, '95%');
+        		$out.= $form->multiselectarray('concatpdffile', $morefiles, (! empty($object->extraparams['concatpdf'])?$object->extraparams['concatpdf']:$arraypreselected), 0, 0, '', 1, '95%');
         	}
         	else
         	{
-        		$out.= '<!-- preselected value is '.$preselected.' -->';
+        		$out.= '<!-- preselected value is '.$preselected.' (key to set preselected value in CONCATPDF_PRESELECTED_MODELS is '.$parameters['modulepart'].') -->';
         		$out.= $form->selectarray('concatpdffile',$morefiles,$preselected,1,0,0);
         	}
         	$out.='</td></tr>';
@@ -172,7 +178,7 @@ class ActionsConcatPdf
      * Execute action
      *
      * @param	array	$parameters		Array of parameters
-     * @param   Object	&$pdfhandler   	PDF builder handler
+     * @param   Object	$pdfhandler   	PDF builder handler
      * @param   string	$action     	'add', 'update', 'view'
      * @return  int 		        	<0 if KO,
      *                          		=0 if OK but we want to process standard actions too,
@@ -185,28 +191,56 @@ class ActionsConcatPdf
 
         $outputlangs=$langs;
 
+        //var_dump($parameters['object']);
+
         $ret=0; $deltemp=array();
         dol_syslog(get_class($this).'::executeHooks action='.$action);
+
+        if (! is_object($parameters['object']))
+        {
+        	dol_syslog("Trigger afterPDFCreation was called but parameter 'object' was not set by caller.", LOG_WARNING);
+        	return 0;
+        }
 
         $check='alpha';
         if (! empty($conf->global->CONCATPDF_MULTIPLE_CONCATENATION_ENABLED)) $check='array';
 
         $concatpdffile = GETPOST('concatpdffile',$check);
-        if (! is_array($concatpdffile) && ! empty($concatpdffile)) $concatpdffile = array($concatpdffile);
+        if (! is_array($concatpdffile))
+        {
+        	if (! empty($concatpdffile)) $concatpdffile = array($concatpdffile);
+        	else $concatpdffile = array();
+        }
+
+
+        // Defined $preselected value
+        $preselected=(isset($parameters['object']->extraparams['concatpdf'][0])?$parameters['object']->extraparams['concatpdf'][0]:-1);	// string with preselected string
+
         // Includes default models if no model selection
-        if (empty($concatpdffile) && ! isset($_POST['concatpdffile']) && ! empty($conf->global->CONCATPDF_PRESELECTED_MODELS)) {
-        	// $conf->global->CONCATPDF_PRESELECTED_MODELS may contains value of preselected model with format
-        	// propal:model1a,model1b;invoice:model2;...
-        	$tmparray=explode(';',$conf->global->CONCATPDF_PRESELECTED_MODELS);
-        	$tmparray2=array();
-        	foreach($tmparray as $val)
+        if (empty($concatpdffile) && ! isset($_POST['concatpdffile']))
+        {
+        	if ($preselected == -1 && ! empty($conf->global->CONCATPDF_PRESELECTED_MODELS))
         	{
-        		$tmp=explode(':',$val);
-        		if (! empty($tmp[1])) $tmparray2[$tmp[0]]=$tmp[1];
+	        	// List of value key into setup -> value for modulepart
+	        	$altkey=array('proposal'=>'propal', 'order'=>'commande', 'invoice'=>'facture', 'supplier_order'=>'commande_fournisseur', 'invoice_order'=>'facture_fournisseur');
+
+	        	// $conf->global->CONCATPDF_PRESELECTED_MODELS may contains value of preselected model with format
+	        	// propal:model1a,model1b;invoice:model2;...
+	        	$tmparray=explode(';',$conf->global->CONCATPDF_PRESELECTED_MODELS);
+	        	$tmparray2=array();
+	        	foreach($tmparray as $val)
+	        	{
+	        		$tmp=explode(':',$val);
+	        		if (! empty($tmp[1])) $tmparray2[$tmp[0]]=$tmp[1];
+	        	}
+	        	foreach($tmparray2 as $key => $val)
+	        	{
+	        		if ($parameters['object']->element == $key || $parameters['object']->element == $altkey[$key]) $concatpdffile[]=$val;
+	        	}
         	}
-        	foreach($tmparray2 as $key => $val)
+        	else
         	{
-        		if ($parameters['object']->element == $key) $concatpdffile[]=$val;
+        		$concatpdffile = $parameters['object']->extraparams['concatpdf'];
         	}
         }
 
@@ -227,7 +261,7 @@ class ActionsConcatPdf
         {
         	foreach($concatpdffile as $concatfile)
         	{
-        		// We find which second file to add (or generate if if file to add as a name starting with pdf___)
+        		// We find which second file to add (or generate it if file to add as a name starting with pdf___)
         		if (preg_match('/^pdf_(.*)+\.modules/', $concatfile))
         		{
         			require_once(DOL_DOCUMENT_ROOT."/core/lib/files.lib.php");
@@ -259,7 +293,7 @@ class ActionsConcatPdf
         		}
         	}
 
-        	dol_syslog(get_class($this).'::afterPDFCreation '.$filetoconcat1.' - '.$filetoconcat2);
+        	dol_syslog(get_class($this).'::afterPDFCreation '.join(',',$filetoconcat1).' - '.join(',',$filetoconcat2));
 
         	if (! empty($filetoconcat2) && ! empty($concatpdffile) && $concatpdffile != '-1')
         	{
@@ -302,7 +336,7 @@ class ActionsConcatPdf
         	}
         }
         else
-       {
+        {
         	// Remove extraparams for concatpdf
         	if (isset($parameters['object']->extraparams['concatpdf'])) unset($parameters['object']->extraparams['concatpdf']);
         }
@@ -313,21 +347,30 @@ class ActionsConcatPdf
     }
 
 	/**
-	 *
-	 * @param unknown_type $pdf
-	 * @param unknown_type $files
+	 * concat
+	 * @param unknown_type $pdf    Pdf
+	 * @param unknown_type $files  Files
 	 */
 	function concat(&$pdf,$files)
 	{
+		$pagecount = 0;
 		foreach($files as $file)
 		{
-			$pagecount = $pdf->setSourceFile($file);
-			for ($i = 1; $i <= $pagecount; $i++)
+			$pagecounttmp = $pdf->setSourceFile($file);
+			if ($pagecounttmp)
 			{
-				$tplidx = $pdf->ImportPage($i);
-				$s = $pdf->getTemplatesize($tplidx);
-				$pdf->AddPage($s['h'] > $s['w'] ? 'P' : 'L');
-				$pdf->useTemplate($tplidx);
+				for ($i = 1; $i <= $pagecounttmp; $i++)
+				{
+					$tplidx = $pdf->ImportPage($i);
+					$s = $pdf->getTemplatesize($tplidx);
+					$pdf->AddPage($s['h'] > $s['w'] ? 'P' : 'L');
+					$pdf->useTemplate($tplidx);
+				}
+				$pagecount += $pagecounttmp;
+			}
+			else
+			{
+				dol_syslog("Error: Can't read PDF content with setSourceFile, for file ".$file, LOG_ERR);
 			}
 		}
 
@@ -335,5 +378,3 @@ class ActionsConcatPdf
 	}
 
 }
-
-?>
