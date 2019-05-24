@@ -191,6 +191,13 @@ class ActionsConcatPdf
 
         $outputlangs=$langs;
 
+
+
+        if(!empty($parameters['object']->forceDesableConcatPdf)){
+        	return 0;
+		}
+
+
         //var_dump($parameters['object']);
 
         $ret=0; $deltemp=array();
@@ -226,7 +233,7 @@ class ActionsConcatPdf
 
 	        	// $conf->global->CONCATPDF_PRESELECTED_MODELS may contains value of preselected model with format
 	        	// propal:model1a,model1b;invoice:model2;...
-			// WARNING : ne pas mettre le ".pdf" dans le nom du modèle dans la conf + ne pas mettre d'espace ou autre dans le nom du fichier
+				// WARNING : ne pas mettre le ".pdf" dans le nom du modèle dans la conf + ne pas mettre d'espace ou autre dans le nom du fichier
 	        	$tmparray=explode(';',$conf->global->CONCATPDF_PRESELECTED_MODELS);
 	        	$tmparray2=array();
 	        	foreach($tmparray as $val)
