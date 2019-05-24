@@ -193,7 +193,7 @@ class ActionsConcatPdf
 
 
 
-        if(!empty($parameters['object']->forceDesableConcatPdf)){
+        if(!empty($parameters['object']->forceDisableConcatPdf)){
         	return 0;
 		}
 
