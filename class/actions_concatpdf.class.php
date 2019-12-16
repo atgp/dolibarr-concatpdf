@@ -291,13 +291,15 @@ class ActionsConcatPdf
 
         			$objectref = dol_sanitizeFileName($parameters['object']->ref);
         			$dir = $conf->concatpdf->dir_temp . "/" . $objectref;
-        			$filetoconcat2[] = $dir . "/" . $objectref . (preg_match('/\.PDF$/',$objectref)?'':".pdf");
+				$fpath = $dir . "/" . $objectref . (preg_match('/\.PDF$/',$objectref)?'':".pdf");
+        			if(is_file($fpath)) $filetoconcat2[] = $fpath;
 
         			$deltemp[] = $dir;
         		}
         		else
         		{
-        			$filetoconcat2[] = $conf->concatpdf->dir_output.'/'.$element.'/'.$concatfile.(preg_match('/\.PDF$/',$concatfile)?'':".pdf");
+				$fpath = $conf->concatpdf->dir_output.'/'.$element.'/'.$concatfile.(preg_match('/\.PDF$/',$concatfile)?'':".pdf");
+        			if(is_file($fpath)) $filetoconcat2[] = $fpath;
         		}
         	}
 
