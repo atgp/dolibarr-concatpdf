@@ -194,6 +194,21 @@ $formfile=new FormFile($db);
 
 llxHeader('','ConcatPdf',$linktohelp);
 
+?>
+
+<script type="text/javascript">
+
+$(document).ready(function(){
+
+        $('#formuserfile').addClass("nofastuploaddropzone");
+
+});
+
+</script>
+
+<?php
+
+
 $linkback='<a href="'.DOL_URL_ROOT.'/admin/modules.php">'.$langs->trans("BackToModuleList").'</a>';
 print_fiche_titre($langs->trans("ConcatPdfSetup"),$linkback,'setup');
 print '<br>';
