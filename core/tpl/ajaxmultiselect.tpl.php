@@ -18,19 +18,19 @@
 
 <!-- BEGIN PHP TEMPLATE -->
 <script type="text/javascript">
-$(document).ready(function () {
-	$.extend($.ui.multiselect.locale, {
-		addAll:'<?php echo $langs->transnoentities("AddAll"); ?>',
-		removeAll:'<?php echo $langs->transnoentities("RemoveAll"); ?>',
-		itemsCount:'<?php echo $langs->transnoentities("ItemsCount"); ?>'
-	});
-	$(function(){
-		$(".multiselect").multiselect({
-			searchable: false,
-			width: $('#selectconcatpdf').width(),
-			height: 120
+	$(document).ready(function () {
+		$.extend($.ui.multiselect.locale, {
+			addAll: '<?php echo $langs->transnoentities("AddAll"); ?>',
+			removeAll: '<?php echo $langs->transnoentities("RemoveAll"); ?>',
+			itemsCount: '<?php echo $langs->transnoentities("ItemsCount"); ?>'
+		});
+		$(function () {
+			$(".multiselect").multiselect({
+				searchable: false,
+				width: $('#selectconcatpdf').width(),
+				height: 120
+			});
 		});
 	});
-});
 </script>
 <!-- END PHP TEMPLATE -->
